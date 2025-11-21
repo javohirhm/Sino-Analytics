@@ -27,6 +27,8 @@ export const useFetch = <T = unknown>(
       return;
     }
 
+    console.log('🔍 Fetching from:', `${API_BASE}${endpoint}`);
+
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
@@ -69,4 +71,5 @@ export const useFetch = <T = unknown>(
     refetch: fetchData,
   };
 };
+
 

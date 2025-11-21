@@ -1,5 +1,5 @@
 export const API_BASE =
-  import.meta.env.VITE_API_BASE?.replace(/\/$/, '') || 'https://chatapi.sinoai.io/';
+  import.meta.env.VITE_API_BASE?.replace(/\/$/, '') || 'https://chatapi.sinoai.io';
 
 export type DateRange = {
   from: string;
