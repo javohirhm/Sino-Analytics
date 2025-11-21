@@ -124,7 +124,7 @@ export const UsersPage = ({
   const regionLoading = !regionFromStats && regions.loading;
   const regionError = regionFromStats ? null : regions.error;
 
-  const regionChartHeight = Math.max(260, regionData.length * 28);
+  // const regionChartHeight = Math.max(260, regionData.length * 28);
 
   /* -------------------------------------------------------
      FINAL JSX (unchanged)
