@@ -14,7 +14,7 @@ type PageProps = {
   dateRange: DateRange;
 };
 
-type ActiveUserPoint = { date: string; count: number };
+type ActiveUserPoint = { date: string; value: number };
 type Distribution = { label: string; value: number };
 type RegionDatum = { label: string; value: number };
 type AgeGroup = { group: string; value: number };
@@ -141,7 +141,7 @@ export const UsersPage = ({
           <LineChart
             data={activeUsers.data ?? []}
             xKey="date"
-            yKey="count"
+            yKey="value"
             yFormatter={(value) => formatNumber(value)}
             xFormatter={(value) =>
               new Date(value as string).toLocaleDateString(undefined, {

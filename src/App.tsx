@@ -48,14 +48,8 @@ function App() {
       ];
     }
 
-    const { total_users, by_location = {}, by_language = {} } = stats.data;
-    const rangeToActiveField: Record<string, keyof UsersStatsPayload> = {
-      '7d': 'active_last_7_days',
-      '30d': 'active_last_30_days',
-      '90d': 'active_last_90_days',
-    };
-    const activeKey = rangeToActiveField[range];
-    const activeValue = activeKey ? stats.data[activeKey] : undefined;
+    const { total_users, active_in_range, by_location = {}, by_language = {} } = stats.data;
+    
     const topLocation = Object.entries(by_location)
       .sort((a, b) => b[1] - a[1])[0];
     const topLanguage = Object.entries(by_language)
@@ -71,8 +65,8 @@ function App() {
       {
         id: 'active',
         title: 'Active Users',
-        value: activeValue ? activeValue.toLocaleString() : '--',
-        subtitle: `last ${range}`,
+        value: active_in_range ? active_in_range.toLocaleString() : '--',
+        subtitle: `in selected range`,
       },
       {
         id: 'location',
