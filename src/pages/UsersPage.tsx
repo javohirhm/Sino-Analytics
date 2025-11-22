@@ -17,9 +17,9 @@ type PageProps = {
 type ActiveUserPoint = { date: string; value: number };
 type Distribution = { label: string; value: number };
 type RegionDatum = { label: string; value: number };
-type AgeGroup = { group: string; value: number };
+type AgeGroup = { label: string; value: number };
 
-const AGE_GROUP_LABELS = ['<20', '40-60', '20-40', '60+'];
+const AGE_GROUP_LABELS = ['<20', '40-60', '60+', '20-40'];
 
 const formatNumber = (value?: number) =>
   value !== undefined ? value.toLocaleString() : '--';
@@ -148,8 +148,8 @@ export const UsersPage = ({
   );
 
   const filteredAgeGroups = useMemo(
-    () => (ageGroups.data ?? []).filter((a) => !isUnknown(a.group)),
-    [ageGroups.data]
+  () => (ageGroups.data ?? []).filter((a) => !isUnknown(a.label)),
+  [ageGroups.data]
   );
 
   /* -------------------------------------------------------
@@ -275,7 +275,7 @@ export const UsersPage = ({
           <div className="space-y-4">
             <BarChart
               data={filteredAgeGroups}
-              xKey="group"
+              xKey="label"
               bars={[{ key: 'value', name: 'Users' }]}
               xLabel="Age group"
               yLabel="Users"
