@@ -19,7 +19,7 @@ type Distribution = { label: string; value: number };
 type RegionDatum = { label: string; value: number };
 type AgeGroup = { group: string; value: number };
 
-const AGE_LABEL_ORDER = ['<20', '40-60', '60+', '20-40', 'unknown'];
+const AGE_GROUP_LABELS = ['<20', '20-40', '40-60', '60+'];
 
 const formatNumber = (value?: number) =>
   value !== undefined ? value.toLocaleString() : '--';
@@ -39,6 +39,15 @@ const normalizeRegionName = (name: string) => {
   return name.trim();
 };
 
+/* -------------------------------------------------------
+   HELPER: Check if value is unknown
+   ------------------------------------------------------- */
+const isUnknown = (label: string | undefined | null) => {
+  if (!label) return false; // Handle undefined/null
+  const lower = label.trim().toLowerCase();
+  return lower === 'unknown' || lower === 'n/a' || lower === 'none';
+};
+
 export const UsersPage = ({
   range: _range,
   refreshKey,
@@ -49,6 +58,12 @@ export const UsersPage = ({
 
   const activeUsers = useFetch<ActiveUserPoint[]>(
     `/api/analytics/users/active${query}`
+  );
+  const dauUsers = useFetch<ActiveUserPoint[]>(
+    `/api/analytics/users/dau${query}`
+  );
+  const mauUsers = useFetch<ActiveUserPoint[]>(
+    `/api/analytics/users/mau${query}`
   );
   const genders = useFetch<Distribution[]>(
     `/api/analytics/users/gender${query}`
@@ -62,7 +77,7 @@ export const UsersPage = ({
   );
 
   /* -------------------------------------------------------
-     LANGUAGE FROM STATS (unchanged)
+     LANGUAGE FROM STATS
      ------------------------------------------------------- */
   const languageFromStats = useMemo<Distribution[] | null>(() => {
     if (!stats?.by_language) return null;
@@ -104,33 +119,87 @@ export const UsersPage = ({
   }, [regions.data]);
 
   /* -------------------------------------------------------
-     OPTIONAL BAR REMOVAL (example: hide "Unknown")
-     ------------------------------------------------------- */
-  const HIDDEN_REGIONS = ["Unknown"]; // ⬅ add any region you want to hide
-
-  const filteredRegions = useMemo(
-    () => normalizedRegions.filter((r) => !HIDDEN_REGIONS.includes(r.label)),
-    [normalizedRegions]
-  );
-
-  /* -------------------------------------------------------
-     Apply fallback logic (unchanged)
+     Apply fallback logic
      ------------------------------------------------------- */
   const languageData = languageFromStats ?? languages.data ?? [];
   const languageLoading = !languageFromStats && languages.loading;
   const languageError = languageFromStats ? null : languages.error;
 
-  const regionData = regionFromStats ?? filteredRegions ?? [];
+  const regionData = regionFromStats ?? normalizedRegions ?? [];
   const regionLoading = !regionFromStats && regions.loading;
   const regionError = regionFromStats ? null : regions.error;
 
-  // const regionChartHeight = Math.max(260, regionData.length * 28);
+  /* -------------------------------------------------------
+     FILTER OUT UNKNOWN VALUES (after all data is defined)
+     ------------------------------------------------------- */
+  const filteredRegions = useMemo(
+    () => regionData.filter((r) => !isUnknown(r.label)),
+    [regionData]
+  );
+
+  const filteredGenders = useMemo(
+    () => (genders.data ?? []).filter((g) => !isUnknown(g.label)),
+    [genders.data]
+  );
+
+  const filteredLanguages = useMemo(
+    () => languageData.filter((l) => !isUnknown(l.label)),
+    [languageData]
+  );
+
+  const filteredAgeGroups = useMemo(
+    () => (ageGroups.data ?? []).filter((a) => !isUnknown(a.group)),
+    [ageGroups.data]
+  );
 
   /* -------------------------------------------------------
-     FINAL JSX (unchanged)
+     FINAL JSX
      ------------------------------------------------------- */
   return (
     <div className="flex flex-col gap-5">
+      {/* DAU and MAU Row */}
+      <div className="grid gap-5 lg:grid-cols-2">
+        <SectionCard
+          title="DAU"
+          subtitle="Daily Active Users"
+          loading={dauUsers.loading}
+          error={dauUsers.error}
+        >
+          <LineChart
+            data={dauUsers.data ?? []}
+            xKey="date"
+            yKey="value"
+            yFormatter={(value) => formatNumber(value)}
+            xFormatter={(value) =>
+              new Date(value as string).toLocaleDateString(undefined, {
+                month: 'short',
+                day: 'numeric',
+              })
+            }
+          />
+        </SectionCard>
+
+        <SectionCard
+          title="MAU"
+          subtitle="Monthly Active Users (30-day rolling)"
+          loading={mauUsers.loading}
+          error={mauUsers.error}
+        >
+          <LineChart
+            data={mauUsers.data ?? []}
+            xKey="date"
+            yKey="value"
+            yFormatter={(value) => formatNumber(value)}
+            xFormatter={(value) =>
+              new Date(value as string).toLocaleDateString(undefined, {
+                month: 'short',
+                day: 'numeric',
+              })
+            }
+          />
+        </SectionCard>
+      </div>
+
       <div className="grid gap-5 lg:grid-cols-3">
         <SectionCard
           title="Active Users"
@@ -158,7 +227,7 @@ export const UsersPage = ({
           error={genders.error}
         >
           <DonutChart
-            data={genders.data ?? []}
+            data={filteredGenders}
             dataKey="value"
             nameKey="label"
           />
@@ -170,7 +239,7 @@ export const UsersPage = ({
           error={languageError}
         >
           <DonutChart
-            data={languageData}
+            data={filteredLanguages}
             dataKey="value"
             nameKey="label"
           />
@@ -186,7 +255,7 @@ export const UsersPage = ({
           className="lg:col-span-3"
         >
           <BarChart
-            data={regionData}
+            data={filteredRegions}
             xKey="label"
             bars={[{ key: 'value', name: 'Users' }]}
             height={500}
@@ -205,7 +274,7 @@ export const UsersPage = ({
         >
           <div className="space-y-4">
             <BarChart
-              data={ageGroups.data ?? []}
+              data={filteredAgeGroups}
               xKey="group"
               bars={[{ key: 'value', name: 'Users' }]}
               xLabel="Age group"
@@ -213,7 +282,7 @@ export const UsersPage = ({
             />
 
             <div className="flex flex-wrap justify-between gap-3 text-xs uppercase tracking-wide text-white/60">
-              {AGE_LABEL_ORDER.map((label) => (
+              {AGE_GROUP_LABELS.map((label) => (
                 <span key={label}>{label}</span>
               ))}
             </div>

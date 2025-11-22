@@ -12,11 +12,15 @@
 export interface UsersStatsPayload {
   total_users: number;
   active_in_range: number;
+  daily_active_users: number;    // Add this
+  monthly_active_users: number;  // Add this
   by_location: Record<string, number>;
   by_language: Record<string, number>;
   by_age_group?: Record<string, number>;
   by_gender?: Record<string, number>;
   by_region?: Record<string, number>;
+  avg_rating?: number;
+  conclusion_count?: number;
 }
 
 export interface ActiveUserPoint {

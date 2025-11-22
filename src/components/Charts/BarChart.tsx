@@ -34,28 +34,6 @@ interface BarChartProps<T extends Record<string, unknown>> {
   xTickAngle?: number;
 }
 
-const renderTooltip = (props: TooltipProps<any, any>) => {
-  if (!props.active || !props.payload?.length) return null;
-  
-  const entry = props.payload[0];
-  const label = props.label;
-  const value = entry?.value;
-  
-  return (
-    <div className={tooltipContainer}>
-      <p className="text-sm text-white">
-        <span className="font-medium">{label}</span>
-        {value !== undefined && (
-          <>
-            {' - '}
-            <span className="text-white/80">{value.toLocaleString()} users</span>
-          </>
-        )}
-      </p>
-    </div>
-  );
-};
-
 export function BarChart<T extends Record<string, unknown>>({
   data = [],
   xKey,
@@ -88,6 +66,31 @@ export function BarChart<T extends Record<string, unknown>>({
     angle: xTickAngle ?? 0,
     textAnchor: xTickAngle ? 'end' : 'middle',
     dy: 5,
+  };
+
+  const renderTooltip = (props: TooltipProps<any, any>) => {
+    if (!props.active || !props.payload?.length) return null;
+    const category = props.payload[0]?.payload?.[xKey as string];
+
+    return (
+      <div className={tooltipContainer}>
+        {category && (
+          <p className="text-xs uppercase tracking-[0.2em] text-white/60">
+            {String(category)}
+          </p>
+        )}
+        {props.payload.map((item) => (
+          <p key={item.dataKey} className="text-sm text-white">
+            <span className="text-white/60">{item.name || item.dataKey}:</span>{' '}
+            <span className="font-medium">
+              {typeof item.value === 'number'
+                ? item.value.toLocaleString()
+                : item.value}
+            </span>
+          </p>
+        ))}
+      </div>
+    );
   };
 
   return (

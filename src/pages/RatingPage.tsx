@@ -19,7 +19,6 @@ type RatingSummary = {
 
 type HistogramBucket = { bucket: string; value: number };
 type TrendPoint = { date: string; value: number };
-type TopUser = { name: string; messages: number; rating: number };
 
 const formatDecimal = (value?: number | null, fallback = '--') => {
   if (value === null || value === undefined || Number.isNaN(value)) {
@@ -44,9 +43,6 @@ export const RatingPage = ({
   );
   const trend = useFetch<TrendPoint[]>(
     `/api/analytics/ratings/trend${query}`
-  );
-  const topUsers = useFetch<TopUser[]>(
-    `/api/analytics/ratings/top-users${query}`
   );
 
   return (
@@ -128,35 +124,6 @@ export const RatingPage = ({
           />
         </SectionCard>
       </div>
-
-      <SectionCard
-        title="Top Engaged Users"
-        subtitle="High impact contributors"
-        loading={topUsers.loading}
-        error={topUsers.error}
-      >
-        <div className="space-y-3">
-          {(topUsers.data ?? []).map((user) => (
-            <div
-              key={user.name}
-              className="flex items-center justify-between rounded-xl border border-white/5 bg-white/5 px-4 py-3"
-            >
-              <div>
-                <p className="font-medium">{user.name}</p>
-                <p className="text-xs text-white/60">
-                  {user.messages.toLocaleString()} msgs
-                </p>
-              </div>
-              <span className="text-lg font-semibold text-teal-300">
-                {formatDecimal(user.rating)}
-              </span>
-            </div>
-          ))}
-          {!topUsers.data?.length && (
-            <p className="text-sm text-white/60">No engaged users found.</p>
-          )}
-        </div>
-      </SectionCard>
     </div>
   );
 };

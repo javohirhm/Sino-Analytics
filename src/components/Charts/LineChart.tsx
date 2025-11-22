@@ -21,26 +21,6 @@ interface LineChartProps<T extends Record<string, unknown>> {
   xFormatter?: (value: unknown) => string;
 }
 
-const renderTooltip = (
-  props: TooltipProps<any, any>,
-  yFormatter?: (value: number) => string
-) => {
-  if (!props.active || !props.payload?.length) return null;
-  const [payload] = props.payload;
-  return (
-    <div className={tooltipContainer}>
-      <p className="text-xs uppercase tracking-[0.15em] text-white/60">
-        {payload.name}
-      </p>
-      <p className="text-lg font-semibold text-white">
-        {yFormatter
-          ? yFormatter(payload.value as number)
-          : payload.value?.toString()}
-      </p>
-    </div>
-  );
-};
-
 export function LineChart<T extends Record<string, unknown>>({
   data = [],
   xKey,
@@ -51,6 +31,39 @@ export function LineChart<T extends Record<string, unknown>>({
   xFormatter,
 }: LineChartProps<T>) {
   const gradientId = useId();
+
+  const renderTooltip = (props: TooltipProps<any, any>) => {
+    if (!props.active || !props.payload?.length) return null;
+    const [payload] = props.payload;
+    const value = typeof payload.value === 'number' ? payload.value : 0;
+    const formattedValue = yFormatter ? yFormatter(value) : value.toString();
+
+    const xValue = payload.payload?.[xKey as string];
+    const formattedDate = xFormatter
+      ? xFormatter(xValue)
+      : typeof xValue === 'string'
+        ? new Date(xValue).toLocaleDateString(undefined, {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+          })
+        : String(xValue ?? '');
+
+    return (
+      <div className={tooltipContainer}>
+        {formattedDate && (
+          <p className="text-xs uppercase tracking-[0.15em] text-white/60">
+            {formattedDate}
+          </p>
+        )}
+        <p className="text-xs uppercase tracking-[0.15em] text-white/60">
+          {payload.name}
+        </p>
+        <p className="text-lg font-semibold text-white">{formattedValue}</p>
+      </div>
+    );
+  };
+
   if (!data.length) {
     return (
       <div
@@ -90,7 +103,7 @@ export function LineChart<T extends Record<string, unknown>>({
             tickFormatter={yFormatter}
             width={50}
           />
-          <Tooltip content={(props) => renderTooltip(props, yFormatter)} />
+          <Tooltip content={renderTooltip} />
           <Line
             type="monotone"
             dataKey={yKey as string}

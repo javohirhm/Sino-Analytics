@@ -17,21 +17,6 @@ interface DonutChartProps<T extends Record<string, unknown>> {
   height?: number;
 }
 
-const renderTooltip = (props: TooltipProps<any, any>) => {
-  if (!props.active || !props.payload?.length) return null;
-  const [payload] = props.payload;
-  return (
-    <div className={tooltipContainer}>
-      <p className="text-xs uppercase tracking-[0.15em] text-white/60">
-        {payload.name}
-      </p>
-      <p className="text-lg font-semibold text-white">
-        {payload.value?.toString()}
-      </p>
-    </div>
-  );
-};
-
 export function DonutChart<T extends Record<string, unknown>>({
   data = [],
   dataKey,
@@ -49,6 +34,31 @@ export function DonutChart<T extends Record<string, unknown>>({
       </div>
     );
   }
+
+  const total = data.reduce((sum, entry) => {
+    const value = Number(entry[dataKey]);
+    return sum + (Number.isFinite(value) ? value : 0);
+  }, 0);
+
+  const renderTooltip = (props: TooltipProps<any, any>) => {
+    if (!props.active || !props.payload?.length) return null;
+    const [payload] = props.payload;
+    const value = typeof payload.value === 'number' ? payload.value : 0;
+    const percent =
+      total > 0 ? ` (${((value / total) * 100).toFixed(1)}%)` : '';
+
+    return (
+      <div className={tooltipContainer}>
+        <p className="text-xs uppercase tracking-[0.15em] text-white/60">
+          {payload.name}
+        </p>
+        <p className="text-lg font-semibold text-white">
+          {value.toLocaleString()}
+          <span className="ml-1 text-sm text-white/60">{percent}</span>
+        </p>
+      </div>
+    );
+  };
 
   return (
     <div style={{ height }}>

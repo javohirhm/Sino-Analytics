@@ -4,13 +4,12 @@ import type { UsersStatsPayload } from './types/analytics';
 import { UsersPage } from './pages/UsersPage';
 import { RatingPage } from './pages/RatingPage';
 import { AISumPage } from './pages/AISumPage';
-import { MonitoringPage } from './pages/MonitoringPage';
 import { StatCard } from './components/Cards/StatCard';
 import { RANGE_OPTIONS, getRangeDates, type DateRange } from './config';
 import { useFetch } from './hooks/useFetch';
 import './index.css';
 
-type TabId = 'users' | 'rating' | 'aisum' | 'monitoring';
+type TabId = 'users' | 'rating' | 'aisum';
 type DashboardPageProps = {
   range: string;
   refreshKey: number;
@@ -23,7 +22,6 @@ const tabs: { id: TabId; label: string; component: DashboardPage }[] = [
   { id: 'users', label: 'Users', component: UsersPage },
   { id: 'rating', label: 'Rating', component: RatingPage },
   { id: 'aisum', label: 'AISum', component: AISumPage },
-  { id: 'monitoring', label: 'Monitoring', component: MonitoringPage },
 ];
 
 function App() {
@@ -37,24 +35,41 @@ function App() {
   const stats = useFetch<UsersStatsPayload>(
     `/api/analytics/users/stats?date_from=${dateRange.from}&date_to=${dateRange.to}&_=${refreshKey}`
   );
+  const ratingSummary = useFetch<{ avg_rating?: number }>(
+    `/api/analytics/ratings/summary`
+  );
+  const conclusions = useFetch<{ conclusion_count: number }>(
+    `/api/analytics/conclusions/count?date_from=${dateRange.from}&date_to=${dateRange.to}&_=${refreshKey}`
+  );
 
   const statCards = useMemo(() => {
     if (!stats.data) {
       return [
         { id: 'total', title: 'Total Users', value: '--', subtitle: 'users' },
         { id: 'active', title: 'Active Users', value: '--', subtitle: 'last range' },
+        { id: 'dau', title: 'DAU', value: '--', subtitle: 'daily active' },
+        { id: 'mau', title: 'MAU', value: '--', subtitle: 'monthly active' },
         { id: 'location', title: 'Top Region', value: '--', subtitle: '' },
         { id: 'language', title: 'Top Language', value: '--', subtitle: '' },
       ];
     }
 
-    const { total_users, active_in_range, by_location = {}, by_language = {} } = stats.data;
+    const { 
+      total_users,  
+      daily_active_users,
+      monthly_active_users,
+      by_location = {}
+    } = stats.data;
+    
+    // Filter out unknown values
+    const isUnknown = (label: string) => {
+      const lower = label.toLowerCase();
+      return lower === 'unknown' || lower === 'n/a' || lower === 'none';
+    };
     
     const topLocation = Object.entries(by_location)
+      .filter(([label]) => !isUnknown(label))
       .sort((a, b) => b[1] - a[1])[0];
-    const topLanguage = Object.entries(by_language)
-      .sort((a, b) => b[1] - a[1])[0];
-
     return [
       {
         id: 'total',
@@ -63,10 +78,16 @@ function App() {
         subtitle: 'users',
       },
       {
-        id: 'active',
-        title: 'Active Users',
-        value: active_in_range ? active_in_range.toLocaleString() : '--',
-        subtitle: `in selected range`,
+        id: 'dau',
+        title: 'DAU',
+        value: daily_active_users ? daily_active_users.toLocaleString() : '--',
+        subtitle: 'daily active users',
+      },
+      {
+        id: 'mau',
+        title: 'MAU',
+        value: monthly_active_users ? monthly_active_users.toLocaleString() : '--',
+        subtitle: 'monthly active users',
       },
       {
         id: 'location',
@@ -75,13 +96,25 @@ function App() {
         subtitle: topLocation ? topLocation[0] : 'n/a',
       },
       {
-        id: 'language',
-        title: 'Top Language',
-        value: topLanguage ? topLanguage[1].toLocaleString() : '--',
-        subtitle: topLanguage ? topLanguage[0].toUpperCase() : 'n/a',
+        id: 'rating',
+        title: 'AVG Rating',
+        value:
+          Number.isFinite(Number(ratingSummary.data?.avg_rating))
+            ? Number(ratingSummary.data?.avg_rating).toFixed(2)
+            : '--',
+        subtitle: 'user satisfaction',
+      },
+      {
+        id: 'conclusions',
+        title: 'Conclusion Messages',
+        value:
+          Number.isFinite(Number(conclusions.data?.conclusion_count))
+            ? Number(conclusions.data?.conclusion_count).toLocaleString()
+            : '--',
+        subtitle: 'assistant summaries',
       },
     ];
-  }, [stats.data, range]);
+  }, [stats.data, range, ratingSummary.data?.avg_rating, conclusions.data?.conclusion_count]);
 
   const ActivePage =
     tabs.find((tab) => tab.id === activeTab)?.component ?? UsersPage;
@@ -168,7 +201,7 @@ function App() {
       </header>
 
       <main className="mx-auto flex max-w-6xl flex-col gap-6 px-6 py-8">
-        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
           {statCards.map((card) => (
             <StatCard
               key={card.id}
