@@ -19,7 +19,7 @@ type Distribution = { label: string; value: number };
 type RegionDatum = { label: string; value: number };
 type AgeGroup = { group: string; value: number };
 
-const AGE_GROUP_LABELS = ['<20', '20-40', '40-60', '60+'];
+const AGE_GROUP_LABELS = ['<20', '40-60', '20-40', '60+'];
 
 const formatNumber = (value?: number) =>
   value !== undefined ? value.toLocaleString() : '--';
