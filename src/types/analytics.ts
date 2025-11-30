@@ -39,6 +39,7 @@ export interface RegionDatum {
 }
 
 export interface AgeGroup {
-  group: string;
+  label?: string;
+  group?: string;
   value: number;
 }

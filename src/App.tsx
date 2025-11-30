@@ -1,12 +1,13 @@
 import { useMemo, useState } from 'react';
 import type { ComponentType } from 'react';
-import type { UsersStatsPayload } from './types/analytics';
+import type { UsersStatsPayload, RegionDatum } from './types/analytics';
 import { UsersPage } from './pages/UsersPage';
 import { RatingPage } from './pages/RatingPage';
 import { AISumPage } from './pages/AISumPage';
 import { StatCard } from './components/Cards/StatCard';
 import { RANGE_OPTIONS, getRangeDates, type DateRange } from './config';
 import { useFetch } from './hooks/useFetch';
+import { normalizeRegionName, shouldExcludeRegionLabel } from './utils/region';
 import './index.css';
 
 type TabId = 'users' | 'rating' | 'aisum';
@@ -41,6 +42,7 @@ function App() {
   const conclusions = useFetch<{ conclusion_count: number }>(
     `/api/analytics/conclusions/count?date_from=${dateRange.from}&date_to=${dateRange.to}&_=${refreshKey}`
   );
+  const regions = useFetch<RegionDatum[]>(`/api/analytics/users/regions`);
 
   const statCards = useMemo(() => {
     if (!stats.data) {
@@ -54,22 +56,50 @@ function App() {
       ];
     }
 
-    const { 
-      total_users,  
+    const {
+      total_users,
       daily_active_users,
       monthly_active_users,
-      by_location = {}
+      by_location = {},
     } = stats.data;
-    
-    // Filter out unknown values
-    const isUnknown = (label: string) => {
-      const lower = label.toLowerCase();
-      return lower === 'unknown' || lower === 'n/a' || lower === 'none';
-    };
-    
-    const topLocation = Object.entries(by_location)
-      .filter(([label]) => !isUnknown(label))
-      .sort((a, b) => b[1] - a[1])[0];
+
+    const normalizedRegionFromStats = Object.entries(by_location ?? {}).reduce(
+      (acc, [rawLabel, rawValue]) => {
+        const value = Number(rawValue);
+        if (!Number.isFinite(value)) return acc;
+        const label = normalizeRegionName(rawLabel);
+        acc[label] = (acc[label] ?? 0) + value;
+        return acc;
+      },
+      {} as Record<string, number>
+    );
+    const regionsFromStats = Object.entries(normalizedRegionFromStats).map(
+      ([label, value]) => ({ label, value })
+    );
+
+    const normalizedApiRegions = (() => {
+      if (!regions.data) return [];
+      const merged: Record<string, number> = {};
+      for (const region of regions.data) {
+        if (typeof region.value !== 'number' || Number.isNaN(region.value)) {
+          continue;
+        }
+        const label = normalizeRegionName(region.label);
+        merged[label] = (merged[label] ?? 0) + region.value;
+      }
+      return Object.entries(merged).map(([label, value]) => ({
+        label,
+        value,
+      }));
+    })();
+
+    const regionDataForCard =
+      normalizedApiRegions.length > 0 ? normalizedApiRegions : regionsFromStats;
+
+    const topRegionEntry = regionDataForCard
+      .filter((entry) => !shouldExcludeRegionLabel(entry.label))
+      .sort((a, b) => b.value - a.value)[0];
+
     return [
       {
         id: 'total',
@@ -92,8 +122,8 @@ function App() {
       {
         id: 'location',
         title: 'Top Region',
-        value: topLocation ? topLocation[1].toLocaleString() : '--',
-        subtitle: topLocation ? topLocation[0] : 'n/a',
+        value: topRegionEntry ? topRegionEntry.value.toLocaleString() : '--',
+        subtitle: topRegionEntry ? topRegionEntry.label : 'n/a',
       },
       {
         id: 'rating',
@@ -114,7 +144,13 @@ function App() {
         subtitle: 'assistant summaries',
       },
     ];
-  }, [stats.data, range, ratingSummary.data?.avg_rating, conclusions.data?.conclusion_count]);
+  }, [
+    stats.data,
+    range,
+    ratingSummary.data?.avg_rating,
+    conclusions.data?.conclusion_count,
+    regions.data,
+  ]);
 
   const ActivePage =
     tabs.find((tab) => tab.id === activeTab)?.component ?? UsersPage;

@@ -6,6 +6,10 @@ import { BarChart } from '../components/Charts/BarChart';
 import { useFetch } from '../hooks/useFetch';
 import type { UsersStatsPayload } from '../types/analytics';
 import type { DateRange } from '../config';
+import {
+  normalizeRegionName,
+  shouldExcludeRegionLabel,
+} from '../utils/region';
 
 type PageProps = {
   range: string;
@@ -23,21 +27,6 @@ const AGE_GROUP_LABELS = ['<20', '20-40', '40-60', '60+'];
 
 const formatNumber = (value?: number) =>
   value !== undefined ? value.toLocaleString() : '--';
-
-/* -------------------------------------------------------
-   REGION NORMALIZATION MAP
-   ------------------------------------------------------- */
-const normalizeRegionName = (name: string) => {
-  if (!name) return 'Unknown';
-
-  const lower = name.toLowerCase().trim();
-
-  if (lower.includes("qoraqalpog'iston")) {
-    return "Qoraqalpog'iston Respublikasi";
-  }
-
-  return name.trim();
-};
 
 /* -------------------------------------------------------
    HELPER: Check if value is unknown
@@ -71,7 +60,7 @@ export const UsersPage = ({
   const languages = useFetch<Distribution[]>(
     `/api/analytics/users/language${query}`
   );
-  const regions = useFetch<RegionDatum[]>(`/api/analytics/users/locations`);
+  const regions = useFetch<RegionDatum[]>(`/api/analytics/users/regions`);
   const ageGroups = useFetch<AgeGroup[]>(
     `/api/analytics/users/age-groups${query}`
   );
@@ -125,15 +114,18 @@ export const UsersPage = ({
   const languageLoading = !languageFromStats && languages.loading;
   const languageError = languageFromStats ? null : languages.error;
 
-  const regionData = regionFromStats ?? normalizedRegions ?? [];
-  const regionLoading = !regionFromStats && regions.loading;
-  const regionError = regionFromStats ? null : regions.error;
+  const hasRegionApiData = normalizedRegions.length > 0;
+  const regionData =
+    (hasRegionApiData ? normalizedRegions : regionFromStats) ?? [];
+  const regionLoading = !hasRegionApiData && regions.loading;
+  const regionError =
+    !hasRegionApiData && !regionFromStats ? regions.error : null;
 
   /* -------------------------------------------------------
      FILTER OUT UNKNOWN VALUES (after all data is defined)
      ------------------------------------------------------- */
   const filteredRegions = useMemo(
-    () => regionData.filter((r) => !isUnknown(r.label)),
+    () => regionData.filter((r) => !shouldExcludeRegionLabel(r.label)),
     [regionData]
   );
 
@@ -147,10 +139,34 @@ export const UsersPage = ({
     [languageData]
   );
 
-  const filteredAgeGroups = useMemo(
-    () => (ageGroups.data ?? []).filter((a) => !isUnknown(a.group)),
-    [ageGroups.data]
-  );
+  const orderedAgeGroups = useMemo(() => {
+    const orderIndex = AGE_GROUP_LABELS.reduce<Record<string, number>>(
+      (acc, label, index) => {
+        acc[label] = index;
+        return acc;
+      },
+      {}
+    );
+
+    const normalized = (ageGroups.data ?? []).map((item) => {
+      const group = item.group ?? item.label ?? '';
+      return {
+        group,
+        value:
+          typeof item.value === 'number' && !Number.isNaN(item.value)
+            ? item.value
+            : 0,
+      };
+    });
+
+    return normalized
+      .filter((ageGroup) => ageGroup.group && !isUnknown(ageGroup.group))
+      .sort((a, b) => {
+        const aIndex = orderIndex[a.group] ?? Number.MAX_SAFE_INTEGER;
+        const bIndex = orderIndex[b.group] ?? Number.MAX_SAFE_INTEGER;
+        return aIndex - bIndex;
+      });
+  }, [ageGroups.data]);
 
   /* -------------------------------------------------------
      FINAL JSX
@@ -274,7 +290,7 @@ export const UsersPage = ({
         >
           <div className="space-y-4">
             <BarChart
-              data={filteredAgeGroups}
+              data={orderedAgeGroups}
               xKey="group"
               bars={[{ key: 'value', name: 'Users' }]}
               xLabel="Age group"
