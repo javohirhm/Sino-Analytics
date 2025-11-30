@@ -4,7 +4,7 @@ import { LineChart } from '../components/Charts/LineChart';
 import { DonutChart } from '../components/Charts/DonutChart';
 import { BarChart } from '../components/Charts/BarChart';
 import { useFetch } from '../hooks/useFetch';
-import type { UsersStatsPayload } from '../types/analytics';
+import type { UsersStatsPayload, AgeGroup } from '../types/analytics';
 import type { DateRange } from '../config';
 import {
   normalizeRegionName,
@@ -21,8 +21,6 @@ type PageProps = {
 type ActiveUserPoint = { date: string; value: number };
 type Distribution = { label: string; value: number };
 type RegionDatum = { label: string; value: number };
-type AgeGroup = { group: string; value: number };
-
 const AGE_GROUP_LABELS = ['<20', '20-40', '40-60', '60+'];
 
 const formatNumber = (value?: number) =>
